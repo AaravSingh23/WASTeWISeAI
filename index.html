@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>WasteWise AI</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:      #0d1f15;
+    --surface: #111f14;
+    --card:    #172b1a;
+    --border:  #243d28;
+    --green:   #4ade80;
+    --gdim:    rgba(74,222,128,0.12);
+    --text:    #e4f0e7;
+    --muted:   #6b9975;
+    --red:     #f87171;
+    --blue:    #60a5fa;
+    --purple:  #c084fc;
+    --yellow:  #facc15;
+  }
+
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--bg); color: var(--text);
+    height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  /* =========== MODAL =========== */
+  #modal {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; padding: 16px;
+  }
+  #modal.hidden { display: none; }
+
+  .modal-inner {
+    background: var(--card); border: 1px solid var(--green);
+    border-radius: 16px; padding: 26px 22px;
+    width: 100%; max-width: 440px;
+  }
+  .modal-inner h2 { font-size: 17px; color: var(--green); margin-bottom: 4px; }
+  .modal-inner > p { font-size: 12px; color: var(--muted); margin-bottom: 16px; line-height: 1.6; }
+
+  /* Provider tabs */
+  .provider-tabs {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 6px; margin-bottom: 16px;
+  }
+  .ptab {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 9px 6px; text-align: center;
+    cursor: pointer; transition: all .15s;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+  .ptab:hover { border-color: var(--green); }
+  .ptab.active { border-color: var(--green); background: var(--gdim); }
+  .ptab .p-icon { font-size: 20px; }
+  .ptab .p-name { font-size: 11px; font-weight: 700; color: var(--text); }
+  .ptab .p-sub  { font-size: 10px; color: var(--muted); }
+
+  /* Provider info box */
+  .provider-info {
+    background: rgba(74,222,128,0.06); border: 1px solid var(--border);
+    border-radius: 10px; padding: 11px 13px; margin-bottom: 14px;
+    font-size: 12px; color: var(--muted); line-height: 1.8;
+  }
+  .provider-info strong { color: var(--text); }
+  .provider-info a { color: var(--green); }
+
+  #keyInput {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 11px 13px; color: var(--text);
+    font-size: 13px; font-family: monospace; outline: none;
+    margin-bottom: 7px; letter-spacing: 0.03em;
+  }
+  #keyInput:focus { border-color: var(--green); }
+  #keyInput::placeholder { color: var(--muted); }
+
+  #keyErr { font-size: 12px; color: var(--red); margin-bottom: 10px; display: none; }
+
+  #saveBtn {
+    width: 100%; background: var(--green); color: #0a160c;
+    border: none; border-radius: 10px; padding: 12px;
+    font-size: 15px; font-weight: 700; cursor: pointer; transition: opacity .15s;
+  }
+  #saveBtn:hover { opacity: 0.88; }
+
+  .modal-note {
+    text-align: center; font-size: 11px; color: var(--muted);
+    margin-top: 11px; line-height: 1.6;
+  }
+  .modal-note .lock { color: var(--green); }
+
+  /* =========== HEADER =========== */
+  header {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 12px 16px; display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  }
+  .dot-live { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: blink 2s infinite; flex-shrink: 0; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .logo { font-size: 19px; font-weight: 800; color: var(--green); letter-spacing: -0.5px; }
+  .logo span { color: var(--text); font-weight: 400; }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 7px; }
+  .sdg-pill { font-size: 11px; font-weight: 600; background: var(--gdim); color: var(--green); border: 1px solid var(--green); border-radius: 20px; padding: 3px 9px; white-space: nowrap; }
+
+  #providerBadge {
+    font-size: 11px; font-weight: 700;
+    border-radius: 8px; padding: 4px 9px;
+    border: 1px solid var(--border); background: var(--card);
+    color: var(--muted); display: none;
+  }
+  #providerBadge.visible { display: inline-block; }
+
+  #keyBtn {
+    background: var(--card); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 8px; padding: 5px 10px; font-size: 11px; font-weight: 600;
+    cursor: pointer; transition: all .15s;
+  }
+  #keyBtn:hover { border-color: var(--green); color: var(--green); }
+  #keyBtn.active { border-color: var(--green); color: var(--green); }
+
+  /* =========== LEGEND =========== */
+  .legend {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 7px 16px; display: flex; gap: 14px; flex-shrink: 0; overflow-x: auto;
+  }
+  .legend::-webkit-scrollbar { display: none; }
+  .leg { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+  .leg-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
+  /* =========== CHAT =========== */
+  #chat { flex: 1; overflow-y: auto; padding: 16px 13px; display: flex; flex-direction: column; gap: 13px; }
+  #chat::-webkit-scrollbar { width: 4px; }
+  #chat::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  #welcome { text-align: center; padding: 18px 10px 4px; }
+  #welcome .wi { font-size: 42px; margin-bottom: 10px; }
+  #welcome h2 { font-size: 17px; font-weight: 700; color: var(--green); margin-bottom: 5px; }
+  #welcome p  { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+  #chips { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; padding-bottom: 4px; }
+  .chip { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 6px 13px; font-size: 12px; cursor: pointer; color: var(--text); transition: all .15s; }
+  .chip:hover { background: var(--gdim); border-color: var(--green); color: var(--green); }
+
+  .row { display: flex; flex-direction: column; }
+  .row.user { align-items: flex-end; }
+  .row.ai   { align-items: flex-start; }
+
+  .bubble { max-width: 82%; padding: 11px 15px; border-radius: 16px; font-size: 14px; line-height: 1.65; }
+  .user .bubble { background: var(--green); color: #071a09; font-weight: 500; border-radius: 16px 16px 4px 16px; }
+  .ai   .bubble { background: var(--card); border: 1px solid var(--border); color: var(--text); border-radius: 16px 16px 16px 4px; }
+
+  .bin-badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 9px; }
+  .bw { background: rgba(74,222,128,.15);  color: var(--green);  border: 1px solid var(--green); }
+  .bd { background: rgba(96,165,250,.15);  color: var(--blue);   border: 1px solid var(--blue); }
+  .bh { background: rgba(248,113,113,.15); color: var(--red);    border: 1px solid var(--red); }
+  .be { background: rgba(192,132,252,.15); color: var(--purple); border: 1px solid var(--purple); }
+  .bu { background: rgba(250,204,21,.15);  color: var(--yellow); border: 1px solid var(--yellow); }
+
+  .ai-steps { padding-left: 16px; margin: 6px 0; }
+  .ai-steps li { margin-bottom: 4px; }
+  .eco-tip { margin-top: 9px; padding: 7px 11px; background: rgba(74,222,128,.07); border-left: 3px solid var(--green); border-radius: 0 6px 6px 0; font-size: 13px; color: var(--muted); }
+
+  .typing-bubble { background: var(--card); border: 1px solid var(--border); border-radius: 16px 16px 16px 4px; padding: 13px 16px; display: flex; gap: 5px; align-items: center; }
+  .td { width: 7px; height: 7px; background: var(--green); border-radius: 50%; animation: jump 1.2s infinite; }
+  .td:nth-child(2){ animation-delay:.2s } .td:nth-child(3){ animation-delay:.4s }
+  @keyframes jump { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+
+  /* =========== INPUT =========== */
+  .input-area { background: var(--surface); border-top: 1px solid var(--border); padding: 10px 13px; display: flex; gap: 8px; align-items: flex-end; flex-shrink: 0; }
+  #langBtn { background: var(--card); border: 1px solid var(--border); color: var(--muted); border-radius: 8px; padding: 0 9px; height: 42px; font-size: 11px; font-weight: 700; cursor: pointer; flex-shrink: 0; transition: all .15s; }
+  #langBtn:hover { border-color: var(--green); color: var(--green); }
+  #msgInput { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 11px; padding: 10px 13px; font-size: 14px; color: var(--text); font-family: inherit; resize: none; outline: none; min-height: 42px; max-height: 110px; line-height: 1.5; transition: border-color .15s; }
+  #msgInput:focus { border-color: var(--green); }
+  #msgInput::placeholder { color: var(--muted); }
+  #sendBtn { width: 42px; height: 42px; background: var(--green); border: none; border-radius: 11px; font-size: 17px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: opacity .15s, transform .1s; color: #071a09; }
+  #sendBtn:hover { opacity: .85; transform: scale(1.05); }
+  #sendBtn:disabled { opacity: .35; cursor: default; transform: none; }
+
+  strong { font-weight: 700; }
+  .err-box { font-size: 13px; padding: 9px 12px; background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); border-radius: 10px; color: var(--red); line-height: 1.6; }
+  .err-box a { color: var(--red); }
+</style>
+</head>
+<body>
+
+<!-- ============ MODAL ============ -->
+<div id="modal">
+  <div class="modal-inner">
+    <h2>🔑 Choose Your AI Provider</h2>
+    <p>WasteWise AI works with multiple providers. Pick one, paste your key, and go!</p>
+
+    <!-- Provider tabs -->
+    <div class="provider-tabs">
+      <div class="ptab active" onclick="selectProvider('anthropic')" id="tab-anthropic">
+        <div class="p-icon">🟣</div>
+        <div class="p-name">Anthropic</div>
+        <div class="p-sub">Claude</div>
+      </div>
+      <div class="ptab" onclick="selectProvider('openai')" id="tab-openai">
+        <div class="p-icon">🟢</div>
+        <div class="p-name">OpenAI</div>
+        <div class="p-sub">GPT-4o</div>
+      </div>
+      <div class="ptab" onclick="selectProvider('gemini')" id="tab-gemini">
+        <div class="p-icon">🔵</div>
+        <div class="p-name">Google</div>
+        <div class="p-sub">Gemini</div>
+      </div>
+    </div>
+
+    <!-- Dynamic info per provider -->
+    <div class="provider-info" id="providerInfo"></div>
+
+    <input id="keyInput" type="password" placeholder="" autocomplete="off" spellcheck="false"/>
+    <p id="keyErr">⚠️ <span id="keyErrMsg">Invalid key format.</span></p>
+    <button id="saveBtn" onclick="saveKey()">Start WasteWise AI →</button>
+
+    <p class="modal-note">
+      <span class="lock">🔒</span> Your key is saved <strong>only in your browser</strong>.<br/>
+      Never sent to GitHub, the app author, or any third party.<br/>
+      Your browser calls the provider's API directly.
+    </p>
+  </div>
+</div>
+
+<!-- ============ HEADER ============ -->
+<header>
+  <div class="dot-live"></div>
+  <div class="logo">WasteWise<span> AI</span></div>
+  <div class="header-right">
+    <span class="sdg-pill">SDG 11 · SDG 12</span>
+    <span id="providerBadge"></span>
+    <button id="keyBtn" onclick="showModal()">🔑 API Key</button>
+  </div>
+</header>
+
+<!-- ============ BIN LEGEND ============ -->
+<div class="legend">
+  <div class="leg"><div class="leg-dot" style="background:var(--green)"></div>Green — Wet</div>
+  <div class="leg"><div class="leg-dot" style="background:var(--blue)"></div>Blue — Dry</div>
+  <div class="leg"><div class="leg-dot" style="background:var(--red)"></div>Red — Hazardous</div>
+  <div class="leg"><div class="leg-dot" style="background:var(--purple)"></div>Purple — E-Waste</div>
+</div>
+
+<!-- ============ CHAT ============ -->
+<div id="chat">
+  <div id="welcome">
+    <div class="wi">♻️</div>
+    <h2>Ask me about any waste item!</h2>
+    <p>Tell me what you want to throw away — I'll tell you which bin,<br/>
+    how to dispose safely, and share an eco tip. Hindi or English!</p>
+  </div>
+  <div id="chips">
+    <div class="chip" onclick="quick('Old mobile phone 📱')">📱 Old phone</div>
+    <div class="chip" onclick="quick('Vegetable peels and leftover food 🥦')">🥦 Food waste</div>
+    <div class="chip" onclick="quick('Broken CFL bulb 💡')">💡 CFL bulb</div>
+    <div class="chip" onclick="quick('Cardboard boxes and newspapers 📦')">📦 Cardboard</div>
+    <div class="chip" onclick="quick('Used cooking oil 🍳')">🍳 Cooking oil</div>
+    <div class="chip" onclick="quick('Empty medicine bottles and expired tablets 💊')">💊 Medicines</div>
+    <div class="chip" onclick="quick('Plastic water bottles 🧴')">🧴 Plastic</div>
+    <div class="chip" onclick="quick('Purani battery aur remote ke cells 🔋')">🔋 Battery</div>
+  </div>
+</div>
+
+<!-- ============ INPUT ============ -->
+<div class="input-area">
+  <button id="langBtn" onclick="toggleLang()" title="Toggle Hindi/English">HI/EN</button>
+  <textarea id="msgInput" rows="1"
+    placeholder="Type a waste item… e.g. 'broken laptop'"
+    onkeydown="onKey(event)" oninput="grow(this)"></textarea>
+  <button id="sendBtn" onclick="send()">&#10148;</button>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+//  PROVIDER CONFIGURATION
+//  To add a new provider: add an entry to PROVIDERS below.
+//  That's the ONLY place you need to touch.
+// ════════════════════════════════════════════════════════════
+const PROVIDERS = {
+
+  anthropic: {
+    name:        'Anthropic Claude',
+    icon:        '🟣',
+    keyPrefix:   'sk-ant-',
+    placeholder: 'sk-ant-api03-…',
+    keyHint:     'Key must start with <code>sk-ant-</code>',
+    infoHtml: `<strong>Get a free Anthropic key:</strong><br/>
+      1. Go to <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a><br/>
+      2. Sign up → API Keys → <strong>Create Key</strong><br/>
+      3. Paste it here. Free tier included.`,
+    // Calls Anthropic /v1/messages
+    async call(apiKey, userText, systemPrompt) {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 512,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userText }]
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw { code: data.error.type, message: data.error.message, raw: data };
+      return data.content[0].text;
+    }
+  },
+
+  openai: {
+    name:        'OpenAI GPT-4o mini',
+    icon:        '🟢',
+    keyPrefix:   'sk-',
+    placeholder: 'sk-…',
+    keyHint:     'Key must start with <code>sk-</code>',
+    infoHtml: `<strong>Get an OpenAI key:</strong><br/>
+      1. Go to <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com/api-keys</a><br/>
+      2. Sign up → <strong>Create new secret key</strong><br/>
+      3. Paste it here. Pay-as-you-go, very cheap.`,
+    // Calls OpenAI /v1/chat/completions
+    async call(apiKey, userText, systemPrompt) {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + apiKey
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          max_tokens: 512,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user',   content: userText }
+          ]
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw { code: data.error.type, message: data.error.message, raw: data };
+      return data.choices[0].message.content;
+    }
+  },
+
+  gemini: {
+    name:        'Google Gemini Flash',
+    icon:        '🔵',
+    keyPrefix:   'AIza',
+    placeholder: 'AIzaSy…',
+    keyHint:     'Key must start with <code>AIza</code>',
+    infoHtml: `<strong>Get a free Google AI key:</strong><br/>
+      1. Go to <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a><br/>
+      2. Sign in → <strong>Create API Key</strong><br/>
+      3. Paste it here. Generous free tier.`,
+    // Calls Google Gemini generateContent
+    async call(apiKey, userText, systemPrompt) {
+      const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + apiKey;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: systemPrompt + '\n\nUser message: ' + userText }] }],
+          generationConfig: { maxOutputTokens: 512 }
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw { code: data.error.status, message: data.error.message, raw: data };
+      return data.candidates[0].content.parts[0].text;
+    }
+  }
+
+  // ── ADD MORE PROVIDERS HERE ──────────────────────────────
+  // Example skeleton:
+  //
+  // myprovider: {
+  //   name: 'My Provider', icon: '⚪', keyPrefix: 'mykey-',
+  //   placeholder: 'mykey-…', keyHint: 'Key must start with mykey-',
+  //   infoHtml: `Instructions…`,
+  //   async call(apiKey, userText, systemPrompt) {
+  //     const res = await fetch('https://api.myprovider.com/v1/chat', { … });
+  //     const data = await res.json();
+  //     return data.text; // return the plain text response
+  //   }
+  // }
+  // ────────────────────────────────────────────────────────
+};
+
+// ════════════════════════════════════════════════════════════
+//  SYSTEM PROMPT  (same for all providers)
+// ════════════════════════════════════════════════════════════
+const SYSTEM = `You are WasteWise AI — a friendly waste management advisor for Indian urban households.
+
+When the user mentions any waste item, respond STRICTLY in this format (no extra text outside it):
+
+BIN: [WET or DRY or HAZARDOUS or EWASTE]
+CATEGORY: [e.g. Green Bin — Wet Waste]
+REASON: [1-2 sentences explaining why]
+STEPS:
+• [Step 1]
+• [Step 2]
+• [Step 3]
+TIP: [🌱 One eco fact or sustainability tip]
+
+Classification rules:
+- WET       → food scraps, peels, cooked food, tea bags, garden waste, egg shells
+- DRY       → paper, cardboard, clean plastic, glass, metal, cloth, rubber, tetra packs
+- HAZARDOUS → batteries, CFL/tube lights, paint, pesticides, medicines, chemicals, aerosols
+- EWASTE    → phones, laptops, tablets, chargers, wires, PCBs, cameras, printers, TVs
+
+If the item is composite or unclear, pick the safer/more restrictive category and mention it.
+Reply in the same language the user used (Hindi, English, or Hinglish). Keep it under 160 words total.`;
+
+// ════════════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════════════
+const KEY_STORE      = 'wastewise_api_key';
+const PROVIDER_STORE = 'wastewise_provider';
+
+let busy         = false;
+let hindiMode    = false;
+let activeProvider = 'anthropic'; // default
+
+// ════════════════════════════════════════════════════════════
+//  MODAL — PROVIDER SELECTION
+// ════════════════════════════════════════════════════════════
+function selectProvider(id) {
+  activeProvider = id;
+  // Update tabs
+  Object.keys(PROVIDERS).forEach(k => {
+    document.getElementById('tab-' + k).classList.toggle('active', k === id);
+  });
+  const p = PROVIDERS[id];
+  document.getElementById('providerInfo').innerHTML   = p.infoHtml;
+  document.getElementById('keyInput').placeholder     = p.placeholder;
+  document.getElementById('keyInput').value           = '';
+  document.getElementById('keyErr').style.display     = 'none';
+  document.getElementById('keyErrMsg').innerHTML      = p.keyHint;
+}
+
+function saveKey() {
+  const k   = document.getElementById('keyInput').value.trim();
+  const p   = PROVIDERS[activeProvider];
+  const err = document.getElementById('keyErr');
+  if (!k.startsWith(p.keyPrefix)) { err.style.display = 'block'; return; }
+  err.style.display = 'none';
+  try {
+    localStorage.setItem(KEY_STORE,      k);
+    localStorage.setItem(PROVIDER_STORE, activeProvider);
+  } catch(_) {}
+  document.getElementById('keyInput').value = '';
+  updateHeaderBadge();
+  hideModal();
+}
+
+function showModal() { document.getElementById('modal').classList.remove('hidden'); }
+function hideModal() { document.getElementById('modal').classList.add('hidden'); }
+
+document.getElementById('keyInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') saveKey();
+});
+
+function getSavedKey()      { try { return localStorage.getItem(KEY_STORE)      || ''; } catch(_){ return ''; } }
+function getSavedProvider() { try { return localStorage.getItem(PROVIDER_STORE) || 'anthropic'; } catch(_){ return 'anthropic'; } }
+function clearSaved()       { try { localStorage.removeItem(KEY_STORE); localStorage.removeItem(PROVIDER_STORE); } catch(_){} }
+
+function updateHeaderBadge() {
+  const k = getSavedKey();
+  const p = getSavedProvider();
+  const badge  = document.getElementById('providerBadge');
+  const keyBtn = document.getElementById('keyBtn');
+  if (k) {
+    const prov = PROVIDERS[p];
+    badge.textContent = prov ? prov.icon + ' ' + prov.name : p;
+    badge.classList.add('visible');
+    keyBtn.classList.add('active');
+  } else {
+    badge.classList.remove('visible');
+    keyBtn.classList.remove('active');
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  ON LOAD
+// ════════════════════════════════════════════════════════════
+window.addEventListener('load', () => {
+  // Init tabs — add tabs dynamically in case PROVIDERS object is extended
+  // (tabs are already in HTML for the 3 defaults; this just syncs state)
+  const saved = getSavedProvider();
+  selectProvider(saved);   // render info for saved provider
+  if (getSavedKey()) { hideModal(); updateHeaderBadge(); }
+});
+
+// ════════════════════════════════════════════════════════════
+//  UI HELPERS
+// ════════════════════════════════════════════════════════════
+function toggleLang() {
+  hindiMode = !hindiMode;
+  const btn = document.getElementById('langBtn');
+  const inp = document.getElementById('msgInput');
+  btn.style.color       = hindiMode ? 'var(--green)' : '';
+  btn.style.borderColor = hindiMode ? 'var(--green)' : '';
+  inp.placeholder = hindiMode
+    ? 'Koi bhi waste item type karein… jaise "purana phone"'
+    : 'Type a waste item… e.g. "broken laptop"';
+}
+function grow(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 110) + 'px'; }
+function onKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }
+
+function quick(text) {
+  if (!getSavedKey()) { showModal(); return; }
+  document.getElementById('msgInput').value = text;
+  send();
+}
+
+function addMsg(role, html) {
+  const chat = document.getElementById('chat');
+  const row  = document.createElement('div');
+  row.className = 'row ' + role;
+  row.innerHTML = '<div class="bubble">' + html + '</div>';
+  chat.appendChild(row);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function showTyping() {
+  const chat = document.getElementById('chat');
+  const el   = document.createElement('div');
+  el.className = 'row ai'; el.id = 'typing';
+  el.innerHTML = '<div class="typing-bubble"><div class="td"></div><div class="td"></div><div class="td"></div></div>';
+  chat.appendChild(el);
+  chat.scrollTop = chat.scrollHeight;
+}
+function hideTyping() { const el = document.getElementById('typing'); if (el) el.remove(); }
+
+// ════════════════════════════════════════════════════════════
+//  PARSE AI RESPONSE → RICH HTML
+// ════════════════════════════════════════════════════════════
+function buildHtml(raw) {
+  const binMatch = raw.match(/BIN:\s*(WET|DRY|HAZARDOUS|EWASTE)/i);
+  const catMatch = raw.match(/CATEGORY:\s*(.+)/i);
+  const resMatch = raw.match(/REASON:\s*(.+)/i);
+  const stpMatch = raw.match(/STEPS:([\s\S]*?)(?=TIP:|$)/i);
+  const tipMatch = raw.match(/TIP:\s*(.+)/i);
+
+  const bin = binMatch ? binMatch[1].toUpperCase() : 'UNKNOWN';
+  const badges = {
+    WET:       ['bw','🟢','Green Bin — Wet Waste'],
+    DRY:       ['bd','🔵','Blue Bin — Dry Waste'],
+    HAZARDOUS: ['bh','🔴','Red Bin — Hazardous Waste'],
+    EWASTE:    ['be','🟣','Special — E-Waste'],
+    UNKNOWN:   ['bu','⚠️','Check Locally'],
+  };
+  const [cls, emoji, fallback] = badges[bin] || badges.UNKNOWN;
+  const cat    = catMatch ? catMatch[1].trim() : fallback;
+  const reason = resMatch ? resMatch[1].trim() : '';
+  const tip    = tipMatch ? tipMatch[1].trim() : '';
+  let stepsHtml = '';
+  if (stpMatch) {
+    const lines = stpMatch[1].trim().split('\n').map(l => l.replace(/^[•\-\*]\s*/,'').trim()).filter(Boolean);
+    if (lines.length) stepsHtml = '<ul class="ai-steps">' + lines.map(l => '<li>' + l + '</li>').join('') + '</ul>';
+  }
+  return (
+    '<div class="bin-badge ' + cls + '">' + emoji + ' ' + cat + '</div>' +
+    (reason    ? '<p>' + reason + '</p>' : '') +
+    (stepsHtml ? '<p style="margin-top:8px;font-size:13px;font-weight:700;">How to dispose:</p>' + stepsHtml : '') +
+    (tip       ? '<div class="eco-tip">' + tip + '</div>' : '')
+  );
+}
+
+// ════════════════════════════════════════════════════════════
+//  SEND MESSAGE
+// ════════════════════════════════════════════════════════════
+async function send() {
+  if (busy) return;
+
+  const apiKey     = getSavedKey();
+  const providerID = getSavedProvider();
+  if (!apiKey) { showModal(); return; }
+
+  const provider = PROVIDERS[providerID];
+  if (!provider) { addMsg('ai', '⚠️ Unknown provider. Please re-enter your key.'); return; }
+
+  const inp  = document.getElementById('msgInput');
+  const text = inp.value.trim();
+  if (!text) return;
+
+  ['welcome','chips'].forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
+  inp.value = ''; inp.style.height = 'auto';
+
+  addMsg('user', text);
+  showTyping();
+  busy = true;
+  document.getElementById('sendBtn').disabled = true;
+
+  try {
+    const responseText = await provider.call(apiKey, text, SYSTEM);
+    hideTyping();
+    addMsg('ai', buildHtml(responseText));
+
+  } catch (err) {
+    hideTyping();
+    const code = (err.code || '').toLowerCase();
+    const msg  = err.message || '';
+
+    if (code.includes('rate') || code.includes('limit') || code.includes('quota') || msg.toLowerCase().includes('rate')) {
+      addMsg('ai', '<div class="err-box">⏳ <strong>Rate limit reached.</strong> You\'ve hit your usage quota for this window. Wait a while and try again, or check your <a href="https://console.anthropic.com" target="_blank">billing page</a>.</div>');
+    } else if (code.includes('auth') || code.includes('key') || code.includes('invalid') || msg.toLowerCase().includes('auth')) {
+      clearSaved(); updateHeaderBadge();
+      addMsg('ai', '⚠️ Invalid or expired API key. Click <strong>🔑 API Key</strong> to update it.');
+    } else {
+      addMsg('ai', '⚠️ Error: ' + (msg || 'Something went wrong. Please try again.'));
+    }
+  }
+
+  busy = false;
+  document.getElementById('sendBtn').disabled = false;
+  document.getElementById('chat').scrollTop = 9999;
+}
+</script>
+</body>
+</html>

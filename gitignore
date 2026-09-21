@@ -1,0 +1,42 @@
+# ───────────────────────────────
+# WasteWise AI — .gitignore
+# ───────────────────────────────
+
+# IMPORTANT: Never commit API keys!
+# Store keys in environment variables,
+# not directly in your code.
+
+# Environment / secrets
+.env
+.env.local
+.env.production
+*.key
+secrets.js
+
+# Mac system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows system files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# VS Code editor files
+.vscode/
+*.code-workspace
+
+# Node (if you ever add a build step)
+node_modules/
+npm-debug.log*
+yarn-error.log
+
+# Logs
+*.log
+
+# Temp / backup files
+*.tmp
+*.bak
+*.swp
+*~
