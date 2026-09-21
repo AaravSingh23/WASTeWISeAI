@@ -4,7 +4,6 @@
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 ![HTML](https://img.shields.io/badge/Frontend-HTML%20%7C%20CSS%20%7C%20JS-orange)
-![Powered by Claude](https://img.shields.io/badge/AI-Claude%20(Anthropic)-blueviolet)
 ![SDG 11](https://img.shields.io/badge/SDG-11-f89d2a)
 ![SDG 12](https://img.shields.io/badge/SDG-12-bf8b2e)
 
